@@ -102,11 +102,27 @@ def main():
         col_values = numeric_df[col_name].tolist()
         stats_objs.append(ColumnStats(col_name, col_values))
 
-    print(" ".join(obj.name for obj in stats_objs))
+    column_width = 12
+
+    truncated_names = [obj.name for obj in stats_objs]
+    for i, name in enumerate(truncated_names):
+        if len(name) > column_width - 5:
+            truncated_names[i] = name[:column_width-5] + ".."
+
+    header_names = [""] + truncated_names
+    header_format = f"{{:>{column_width}}}" * (len(truncated_names) + 1)
+
+    print(header_format.format(*header_names))
+    print("-" * (column_width * (len(truncated_names) + 1)))
+
+    value_format = f"{{:>{column_width}.2f}}" * len(truncated_names)
+    stat_name_format = f"{{:<{column_width}}}"
 
     for stat_name in ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max"]:
-        row_values = [f"{obj.describe()[stat_name]:.6f}" for obj in stats_objs]
-        print(stat_name, " ".join(row_values))
+        row_values = [obj.describe()[stat_name] for obj in stats_objs]
+        print(f"{stat_name_format.format(stat_name)}{value_format.format(*row_values)}")
+
+
 
 
 if __name__ == "__main__":
