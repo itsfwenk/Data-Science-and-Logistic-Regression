@@ -48,9 +48,33 @@ def main():
     top_correlation_series = get_top_abs_correlations(numeric_df, 1)
     most_correlated_pair = top_correlation_series.index[0]
 
+    # df_to_plot = pd.DataFrame({
+    #     most_correlated_pair[0]: numeric_df[most_correlated_pair[0]],
+    #     most_correlated_pair[1]: numeric_df[most_correlated_pair[1]],
+    # })
+    # sns.scatterplot(data=df_to_plot, x=most_correlated_pair[0], y=most_correlated_pair[1])
+    # plt.title(f"Correlation between {most_correlated_pair[0]} and {most_correlated_pair[1]}")
+    # plt.xlabel(most_correlated_pair[0])
+    # plt.ylabel(most_correlated_pair[1])
+    # plt.tight_layout()
+    # plt.show()
 
+    plt.figure(figsize=(10, 6))
 
-
+    sns.regplot(
+        x=numeric_df[most_correlated_pair[0]],
+        y=numeric_df[most_correlated_pair[1]],
+        scatter_kws={'alpha': 0.7, 's': 100},
+        line_kws={'color': 'red', 'lw': 2}
+    )
+    plt.title(
+        f'Scatter Plot of the Two Most Correlated Features\n({most_correlated_pair[0]} vs. {most_correlated_pair[1]})',
+        fontsize=16
+    )
+    plt.xlabel(most_correlated_pair[0], fontsize=12)
+    plt.ylabel(most_correlated_pair[1], fontsize=12)
+    plt.grid(True)
+    plt.show()
 
 
 if __name__ == "__main__":
