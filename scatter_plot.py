@@ -24,7 +24,7 @@ def main():
         print("No numerical features found.")
         return
 
-    matrix  = numeric_df.corr().abs()
+    # matrix  = numeric_df.corr().abs()
     # plt.figure(figsize=(8,6))
     # sns.heatmap(matrix, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5)
     # plt.title("Correlation Heatmap")
