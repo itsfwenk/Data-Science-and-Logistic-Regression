@@ -9,17 +9,50 @@ import utils
 import argparse
 
 class LogisticRegression:
-    def __init__(self, learning_rate: float = 0.01, interations:  int=1000):
+    def __init__(self, learning_rate: float = 0.01, max_iterations:  int=1000, tolerance: float = 1e-6):
         self.learning_rate = learning_rate
-        self.iterations = interations
+        self.max_iterations = max_iterations
+        self.tolerance = tolerance
         self.weights = None
         self.bias = None
-        # self.cost_history = []
+        self.cost_history = []
 
     def sigmoid(self, z: np.ndarray) -> np.ndarray:
         z = np.clip(z, -500, 500)
         return 1 / (1 + np.exp(-z))
 
+    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
+        """Train the logistic regression model using gradient descent"""
+        n_samples, n_features = X.shape
+
+        self.weights = np.zeros(n_features)
+        self.bias = 0
+
+        for i in range(self.max_iterations):
+            z = X @ self.weights + self.bias
+            y_pred = self.sigmoid(z)
+
+            cost = self.compute_cost(y, y_pred)
+            self.cost_history.append(cost)
+
+            dw = (1 / n_samples) * X.T @ (y_pred - y)
+            db = (1 / n_samples) * np.sum(y_pred - y)
+
+            self.weights -= self.learning_rate * dw
+            self.bias -= self.learning_rate * db
+
+            if i > 0 and abs(self.cost_history[-2] - self.cost_history[-1]) < self.tolerance:
+                print(f"Converged after {i+1} iterations")
+                break
+
+    def compute_cost(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
+        """Compute the logistic regression cost function"""
+        # Add small epsilon to prevent log(0)
+        epsilon = 1e-15
+        y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
+
+        cost = -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
+        return cost
 
 class OneVsAllClassifier:
     def __init__(self, learning_rate: float = 0.01, max_iterations: int = 1000):
@@ -62,6 +95,7 @@ class OneVsAllClassifier:
             classifier.fit(X_scaled, y_binary)
 
             self.classifiers[class_label] = classifier
+            print(f"{class_label} weights : {classifier.weights}")
 
             # final_cost = classifier.cost_history[-1] if classifier.cost_history else "N/A"
             # print(f"Final cost for {class_label}: {final_cost:.6f}")
