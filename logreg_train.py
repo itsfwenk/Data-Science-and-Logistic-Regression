@@ -2,9 +2,8 @@
 
 import numpy as np
 import pandas as pd
-import sys
 import json
-from typing import Tuple, Dict, List
+from typing import Tuple, List
 import utils
 import argparse
 
@@ -47,7 +46,6 @@ class LogisticRegression:
 
     def compute_cost(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
         """Compute the logistic regression cost function"""
-        # Add small epsilon to prevent log(0)
         epsilon = 1e-15
         y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
 
@@ -95,11 +93,35 @@ class OneVsAllClassifier:
             classifier.fit(X_scaled, y_binary)
 
             self.classifiers[class_label] = classifier
-            print(f"{class_label} weights : {classifier.weights}")
+            # print(f"{class_label} weights : {classifier.weights}")
 
             # final_cost = classifier.cost_history[-1] if classifier.cost_history else "N/A"
             # print(f"Final cost for {class_label}: {final_cost:.6f}")
 
+
+    def save_weights(self, filename: str) -> None:
+        """Save trained weights to a JSON file"""
+        weights_data = {
+            'classes': self.classes.tolist(),
+            'feature_names': self.feature_names,
+            'scaler_params': {
+                'mean': self.scaler_params['mean'].tolist(),
+                'std': self.scaler_params['std'].tolist()
+            },
+            'classifiers': {}
+        }
+
+        for class_label, classifier in self.classifiers.items():
+            weights_data['classifiers'][class_label] = {
+                'weights': classifier.weights.tolist(),
+                'bias': float(classifier.bias),
+                'final_cost': classifier.cost_history[-1] if classifier.cost_history else None
+            }
+
+        with open(filename, 'w') as f:
+            json.dump(weights_data, f, indent=2)
+
+        # print(f"\nWeights saved to {filename}")
 
 def clean_nan_data(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     numeric_df = df.select_dtypes(include=["number"])
@@ -132,12 +154,17 @@ def main():
         return
     del df['Index']
 
+    # sub_df = df[['Astronomy', 'Defense Against the Dark Arts', 'Herbology', 'Potions', 'Transfiguration', 'Charms']]
+    # print(sub_df)
+
     # print(f"Columns: {list(df.columns)}")
     # print(f"Houses: {df['Hogwarts House'].value_counts()}")
 
     X, y, feature_names = clean_nan_data(df)
     classifier = OneVsAllClassifier(learning_rate=0.1, max_iterations=1000)
     classifier.fit(X, y, feature_names)
+    weights_filename = "weights.json"
+    classifier.save_weights(weights_filename)
 
 
 if __name__ == "__main__":
