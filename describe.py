@@ -32,12 +32,15 @@ class ColumnStats:
             total += x
         return total / self.count if self.count > 0 else 0.0
 
-    def std(self):
+    def variance(self):
         mean_val = self.mean()
         variance_sum = 0.0
         for x in self.values:
             variance_sum += (x - mean_val) ** 2
-        return math.sqrt(variance_sum / self.count) if self.count > 0 else 0.0
+        return variance_sum / self.count if self.count > 0 else 0.0
+
+    def std(self):
+        return math.sqrt(self.variance()) if self.count > 0 else 0.0
 
     def min(self):
         if not self.values:
@@ -68,16 +71,43 @@ class ColumnStats:
             return nums_sorted[int(k)]
         return nums_sorted[f] * (c - k) + nums_sorted[c] * (k - f)
 
+    def skewness(self):
+        count_val = self.count
+        mean_val = self.mean()
+        std_val = self.std()
+
+        skw_sum = 0.0
+        for x in self.values:
+            skw_sum += (x - mean_val) ** 3
+        a = count_val / ((count_val - 1) * (count_val - 2))
+        return ((a * skw_sum) / (std_val ** 3))
+
+    def kurtosis(self):
+        count_val = self.count
+        mean_val = self.mean()
+        std_val = self.std()
+
+        kurt_sum = 0.0
+        for x in self.values:
+            kurt_sum += ((x - mean_val) / std_val) ** 4
+        a = (count_val * (count_val + 1)) / ((count_val - 1) * (count_val - 2) * (count_val - 3))
+        b = -((3 * ((count_val - 1) ** 2))) / ((count_val - 2) * (count_val - 3))
+        return (a * (kurt_sum)) + b
+
     def describe(self):
         return {
             "Count": float(self.count),
             "Mean": self.mean(),
             "Std": self.std(),
+            "Variance": self.variance(),
             "Min": self.min(),
             "25%": self.percentile(0.25),
             "50%": self.percentile(0.50),
             "75%": self.percentile(0.75),
-            "Max": self.max()
+            "IQR" : self.percentile(0.75) - self.percentile(0.25),
+            "Max": self.max(),
+            "Skewness": self.skewness(),
+            "Kurtosis" : self.kurtosis()
         }
 
 
@@ -118,7 +148,7 @@ def main():
     value_format = f"{{:>{column_width}.2f}}" * len(truncated_names)
     stat_name_format = f"{{:<{column_width}}}"
 
-    for stat_name in ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max"]:
+    for stat_name in ["Count", "Mean", "Std", "Variance", "Min", "25%", "50%", "75%","IQR", "Max", "Skewness", "Kurtosis"]:
         row_values = [obj.describe()[stat_name] for obj in stats_objs]
         print(f"{stat_name_format.format(stat_name)}{value_format.format(*row_values)}")
 
