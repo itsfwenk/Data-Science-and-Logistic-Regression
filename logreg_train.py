@@ -20,8 +20,8 @@ class LogisticRegression:
         z = np.clip(z, -500, 500)
         return 1 / (1 + np.exp(-z))
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
-        """Train the logistic regression model using gradient descent"""
+    def bgd_fit(self, X: np.ndarray, y: np.ndarray, args) -> None:
+        """Train the logistic regression model using Batch Gradient Descent"""
         n_samples, n_features = X.shape
 
         self.weights = np.zeros(n_features)
@@ -39,6 +39,82 @@ class LogisticRegression:
 
             self.weights -= self.learning_rate * dw
             self.bias -= self.learning_rate * db
+
+            if i > 0 and abs(self.cost_history[-2] - self.cost_history[-1]) < self.tolerance:
+                print(f"Converged after {i+1} iterations")
+                break
+
+    def mbgd_fit(self, X: np.ndarray, y: np.ndarray, batch_size: int = 32) -> None:
+        """Train the logistic regression model using Mini-batch Gradient Descent"""
+        n_samples, n_features = X.shape
+        self.weights = np.zeros(n_features)
+        self.bias = 0
+
+        for i in range(self.max_iterations):
+            indices = np.random.permutation(n_samples)
+            X_shuffled = X[indices]
+            y_shuffled = y[indices]
+
+            epoch_cost = 0
+            n_batches = 0
+
+            for start_idx in range(0, n_samples, batch_size):
+                end_idx = min(start_idx + batch_size, n_samples)
+                X_batch = X_shuffled[start_idx:end_idx]
+                y_batch = y_shuffled[start_idx:end_idx]
+                batch_size_actual = end_idx - start_idx
+
+                z = X_batch @ self.weights + self.bias
+                y_pred = self.sigmoid(z)
+
+                batch_cost = self.compute_cost(y_batch, y_pred)
+                epoch_cost += batch_cost * batch_size_actual
+                n_batches += 1
+
+                dw = (1 / batch_size_actual) * X_batch.T @ (y_pred - y_batch)
+                db = (1 / batch_size_actual) * np.sum(y_pred - y_batch)
+
+                self.weights -= self.learning_rate * dw
+                self.bias -= self.learning_rate * db
+
+            avg_epoch_cost = epoch_cost / n_samples
+            self.cost_history.append(avg_epoch_cost)
+
+            if i > 0 and abs(self.cost_history[-2] - self.cost_history[-1]) < self.tolerance:
+                print(f"Converged after {i+1} iterations")
+                break
+
+    def sgd_fit(self, X: np.ndarray, y: np.ndarray) -> None:
+        """Train the logistic regression model using Stochastic Gradient Descent"""
+        n_samples, n_features = X.shape
+        self.weights = np.zeros(n_features)
+        self.bias = 0
+
+        for i in range(self.max_iterations):
+            indices = np.random.permutation(n_samples)
+            X_shuffled = X[indices]
+            y_shuffled = y[indices]
+
+            epoch_cost = 0
+
+            for j in range(n_samples):
+                X_sample = X_shuffled[j:j+1]
+                y_sample = y_shuffled[j:j+1]
+
+                z = X_sample @ self.weights + self.bias
+                y_pred = self.sigmoid(z)
+
+                sample_cost = self.compute_cost(y_sample, y_pred)
+                epoch_cost += sample_cost
+
+                dw = X_sample.T @ (y_pred - y_sample)
+                db = np.sum(y_pred - y_sample)
+
+                self.weights -= self.learning_rate * dw.flatten()
+                self.bias -= self.learning_rate * db
+
+            avg_epoch_cost = epoch_cost / n_samples
+            self.cost_history.append(avg_epoch_cost)
 
             if i > 0 and abs(self.cost_history[-2] - self.cost_history[-1]) < self.tolerance:
                 print(f"Converged after {i+1} iterations")
@@ -75,7 +151,7 @@ class OneVsAllClassifier:
         return X_scaled
 
 
-    def fit(self, X: np.ndarray, y: np.ndarray, feature_names: List[str]) -> None:
+    def fit(self, X: np.ndarray, y: np.ndarray, feature_names: List[str], args) -> None:
         self.classes = np.unique(y)
         self.feature_names = feature_names
 
@@ -88,9 +164,14 @@ class OneVsAllClassifier:
             y_binary = (y == class_label).astype(int)
             classifier = LogisticRegression(
                 learning_rate=self.learning_rate,
-                max_iterations=self.max_iterations
+                max_iterations=self.max_iterations,
             )
-            classifier.fit(X_scaled, y_binary)
+            if args.gd_type == 'SGD':
+                classifier.sgd_fit(X_scaled, y_binary)
+            elif args.gd_type == 'MBGD':
+                classifier.mbgd_fit(X_scaled, y_binary, batch_size=args.batch_size)
+            else:
+                classifier.bgd_fit(X_scaled, y_binary)
 
             self.classifiers[class_label] = classifier
             # print(f"{class_label} weights : {classifier.weights}")
@@ -125,7 +206,17 @@ class OneVsAllClassifier:
 
 def clean_nan_data(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     numeric_df = df.select_dtypes(include=["number"])
+    # numeric_df.dropna(inplace=True)
+    # print(f"dataset size = {numeric_df.count()}")
     feature_cols = list(numeric_df.columns)
+
+    # numeric_df = df.select_dtypes(include=["number"])
+    # print(f"dataset size = {numeric_df.count()}")
+
+    # sub_df = numeric_df[['Astronomy', 'Defense Against the Dark Arts', 'Herbology', 'Potions', 'Transfiguration', 'Charms']]
+    # sub_df.dropna(inplace=True)
+    # print(f"dataset size = {sub_df.count()}")
+    # feature_cols = list(sub_df.columns)
 
     X = df[feature_cols].values
     y = df['Hogwarts House'].values
@@ -146,6 +237,7 @@ def clean_nan_data(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, List[str]]
 def main():
     parser = argparse.ArgumentParser(description="Train logistic regression")
     parser.add_argument("dataset", type=str, help="dataset to train on")
+    parser.add_argument("--gd_type", type=str, default="BGD", action='store', help="choose between Batch Gradient Descent (default: BGD), Stochastic Gradient Descent (SGD), Mini Batch Gradient Descent (MBGD)")
     args = parser.parse_args()
 
     df = utils.load_csv(args.dataset)
@@ -162,7 +254,7 @@ def main():
 
     X, y, feature_names = clean_nan_data(df)
     classifier = OneVsAllClassifier(learning_rate=0.1, max_iterations=1000)
-    classifier.fit(X, y, feature_names)
+    classifier.fit(X, y, feature_names, args)
     weights_filename = "weights.json"
     classifier.save_weights(weights_filename)
 
