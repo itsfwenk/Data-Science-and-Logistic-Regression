@@ -20,7 +20,7 @@ class LogisticRegression:
         z = np.clip(z, -500, 500)
         return 1 / (1 + np.exp(-z))
 
-    def bgd_fit(self, X: np.ndarray, y: np.ndarray, args) -> None:
+    def bgd_fit(self, X: np.ndarray, y: np.ndarray) -> None:
         """Train the logistic regression model using Batch Gradient Descent"""
         n_samples, n_features = X.shape
 
@@ -235,9 +235,20 @@ def clean_nan_data(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, List[str]]
 
 
 def main():
+    DEFAULT_ALPHA = 0.1
+    DEFAULT_ITER = 1000
+    DEFAULT_BATCH_SIZE = 32
     parser = argparse.ArgumentParser(description="Train logistic regression")
     parser.add_argument("dataset", type=str, help="dataset to train on")
     parser.add_argument("--gd_type", type=str, default="BGD", action='store', help="choose between Batch Gradient Descent (default: BGD), Stochastic Gradient Descent (SGD), Mini Batch Gradient Descent (MBGD)")
+
+    parser.add_argument('--alpha', action='store', default=DEFAULT_ALPHA, type=float,
+        help=f'define learning rate (default: {DEFAULT_ALPHA})')
+    parser.add_argument('--max_iter', action='store', default=DEFAULT_ITER, type=int,
+        help=f'define number of iterations (default: {DEFAULT_ITER})')
+    parser.add_argument('--batch_size', action='store', default=DEFAULT_BATCH_SIZE, type=int,
+        help=f'define batch size for Mini Batch Gradient Descent (default: {DEFAULT_BATCH_SIZE})')
+
     args = parser.parse_args()
 
     df = utils.load_csv(args.dataset)
@@ -253,7 +264,7 @@ def main():
     # print(f"Houses: {df['Hogwarts House'].value_counts()}")
 
     X, y, feature_names = clean_nan_data(df)
-    classifier = OneVsAllClassifier(learning_rate=0.1, max_iterations=1000)
+    classifier = OneVsAllClassifier(learning_rate=args.alpha, max_iterations=args.max_iter)
     classifier.fit(X, y, feature_names, args)
     weights_filename = "weights.json"
     classifier.save_weights(weights_filename)
