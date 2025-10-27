@@ -62,7 +62,7 @@ dslr/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/itsfwenk/Data-Science-and-Logistic-Regression.git
+git clone https://github.com/itsfwenk/Data-Science-and-Logistic-Regression.git dslr
 cd dslr
 ```
 
